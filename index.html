@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Reels - Fruit Machine Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-pink: #ff2d55;
+            --neon-blue: #007aff;
+            --neon-gold: #ffcc00;
+            --neon-green: #34c759;
+            --neon-amber: #ff9500;
+            --bg-dark: #0a0a0c;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        .bungee { font-family: 'Bungee', cursive; }
+        .mono { font-family: 'Share Tech Mono', monospace; }
+
+        .machine-container {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+            border: 4px solid #333;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 20px rgba(255, 45, 85, 0.2);
+            border-radius: 2rem;
+        }
+
+        /* LED Ticker Styles */
+        .ticker-window {
+            background: #050505;
+            border: 3px solid #222;
+            height: 50px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            box-shadow: inset 0 0 15px rgba(255, 149, 0, 0.2);
+        }
+
+        .ticker-text {
+            white-space: nowrap;
+            position: absolute;
+            will-change: transform;
+            color: var(--neon-amber);
+            text-shadow: 0 0 8px var(--neon-amber);
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        @keyframes scroll {
+            from { transform: translateX(100%); }
+            to { transform: translateX(-100%); }
+        }
+
+        .animate-scroll {
+            animation: scroll 10s linear infinite;
+        }
+
+        .reel-window {
+            height: 240px;
+            overflow: hidden;
+            background: #000;
+            position: relative;
+            box-shadow: inset 0 0 40px rgba(0,0,0,1);
+            border: 2px solid #444;
+        }
+
+        .reel-window::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(
+                to bottom,
+                rgba(0,0,0,0.9) 0%,
+                rgba(0,0,0,0) 15%,
+                rgba(0,0,0,0) 85%,
+                rgba(0,0,0,0.9) 100%
+            );
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .reel {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .symbol {
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4.5rem;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .win-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--neon-pink);
+            transform: translateY(-50%);
+            box-shadow: 0 0 15px var(--neon-pink);
+            z-index: 10;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .neon-text-pink { text-shadow: 0 0 10px var(--neon-pink); color: var(--neon-pink); }
+        .neon-text-gold { text-shadow: 0 0 10px var(--neon-gold); color: var(--neon-gold); }
+        .neon-text-blue { text-shadow: 0 0 10px var(--neon-blue); color: var(--neon-blue); }
+        .neon-text-green { text-shadow: 0 0 10px var(--neon-green); color: var(--neon-green); }
+
+        .spin-button {
+            background: linear-gradient(135deg, #ff2d55 0%, #ff5e3a 100%);
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 #991b33, 0 10px 20px rgba(255, 45, 85, 0.4);
+        }
+
+        .spin-button:hover:not(:disabled) { filter: brightness(1.1); }
+        .spin-button:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #991b33, 0 5px 10px rgba(255, 45, 85, 0.4);
+        }
+
+        .nudge-btn, .gamble-btn {
+            background: linear-gradient(135deg, #007aff 0%, #0051a8 100%);
+            box-shadow: 0 4px 0 #003a78;
+            transition: all 0.1s ease;
+        }
+        .gamble-btn-stop {
+            background: linear-gradient(135deg, #ffcc00 0%, #cc9900 100%);
+            box-shadow: 0 4px 0 #996600;
+        }
+        .collect-btn {
+            background: linear-gradient(135deg, #34c759 0%, #248a3d 100%);
+            box-shadow: 0 4px 0 #1a632c;
+        }
+
+        .nudge-btn:active:not(:disabled), .gamble-btn:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #003a78;
+        }
+        .nudge-btn:disabled, .gamble-btn:disabled {
+            filter: grayscale(1);
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .spin-button:disabled {
+            filter: grayscale(1) opacity(0.5);
+            cursor: not-allowed;
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        @keyframes win-glow {
+            0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 0px var(--neon-gold)); }
+            50% { transform: scale(1.1); filter: brightness(1.3) drop-shadow(0 0 20px var(--neon-gold)); }
+        }
+
+        .winning-symbol {
+            animation: win-glow 0.6s ease-in-out infinite;
+            z-index: 20;
+        }
+
+        .nudge-indicator {
+            transition: all 0.3s ease;
+            transform: scale(0);
+        }
+        .nudge-indicator.active { transform: scale(1); }
+
+        .gamble-light {
+            transition: opacity 0.05s ease;
+            opacity: 0.2;
+        }
+        .gamble-light.on {
+            opacity: 1;
+            filter: brightness(1.2);
+        }
+        .gamble-container {
+            border: 2px solid #333;
+            background: #050505;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="max-w-5xl w-full">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="bungee text-5xl md:text-6xl neon-text-pink italic tracking-tighter">NEON REELS</h1>
+        </div>
+
+        <!-- Classic Ticker Window -->
+        <div class="ticker-window mb-6 rounded-lg">
+            <div id="ticker" class="ticker-text mono animate-scroll">WELCOME TO NEON REELS... SPIN TO WIN BIG... INSERT COINS TO START...</div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            
+            <!-- Left Side: Payout Table -->
+            <div class="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-gray-800 hidden lg:block h-full">
+                <h3 class="bungee text-xl text-center mb-4 text-gray-400">PAYS</h3>
+                <div id="payout-list" class="space-y-2"></div>
+            </div>
+
+            <!-- Center: Machine -->
+            <div class="machine-container p-6 col-span-1 lg:col-span-2 shadow-2xl">
+                
+                <div class="flex justify-between gap-4 mb-6">
+                    <div class="flex-1 bg-black border-2 border-gray-700 p-3 rounded-lg text-center">
+                        <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">Balance</div>
+                        <div id="balance-display" class="text-xl bungee neon-text-gold">$100</div>
+                    </div>
+                    <div id="nudge-count-container" class="nudge-indicator flex-1 bg-black border-2 border-blue-600 p-3 rounded-lg text-center">
+                        <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">Nudges</div>
+                        <div id="nudge-display" class="text-xl bungee neon-text-blue">0</div>
+                    </div>
+                    <div class="flex-1 bg-black border-2 border-gray-700 p-3 rounded-lg text-center">
+                        <div class="text-[10px] text-pink-400 font-bold uppercase mb-1">Last Win</div>
+                        <div id="win-display" class="text-xl bungee text-pink-500">$0</div>
+                    </div>
+                </div>
+
+                <div class="reel-window rounded-xl flex border-4 border-gray-800">
+                    <div class="win-line"></div>
+                    <div id="reel-0" class="reel border-r border-gray-900"></div>
+                    <div id="reel-1" class="reel border-r border-gray-900"></div>
+                    <div id="reel-2" class="reel"></div>
+                </div>
+
+                <!-- Nudge Buttons -->
+                <div class="grid grid-cols-3 gap-2 mt-4">
+                    <button id="nudge-0" onclick="nudge(0)" disabled class="nudge-btn py-2 rounded-lg bungee text-xs text-white">NUDGE</button>
+                    <button id="nudge-1" onclick="nudge(1)" disabled class="nudge-btn py-2 rounded-lg bungee text-xs text-white">NUDGE</button>
+                    <button id="nudge-2" onclick="nudge(2)" disabled class="nudge-btn py-2 rounded-lg bungee text-xs text-white">NUDGE</button>
+                </div>
+
+                <div class="mt-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div class="flex items-center bg-black rounded-full border border-gray-700 p-1">
+                        <button onclick="adjustBet(-5)" class="w-12 h-12 flex items-center justify-center text-2xl font-bold hover:text-pink-500 transition-colors">-</button>
+                        <div class="px-6 text-center min-w-[80px]">
+                            <div class="text-[9px] uppercase text-gray-500 font-bold">Bet</div>
+                            <div id="bet-display" class="text-xl font-bold bungee">$10</div>
+                        </div>
+                        <button onclick="adjustBet(5)" class="w-12 h-12 flex items-center justify-center text-2xl font-bold hover:text-pink-500 transition-colors">+</button>
+                    </div>
+
+                    <button id="spin-btn" onclick="spin()" class="spin-button px-12 py-5 rounded-full text-3xl bungee tracking-widest text-white">
+                        SPIN
+                    </button>
+
+                    <div class="flex flex-col items-end">
+                        <div class="text-[10px] text-gray-500 uppercase font-bold mb-1">Vol</div>
+                        <input type="range" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume(this.value)" class="w-20 accent-pink-500 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Gamble Ladder -->
+            <div id="gamble-panel" class="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-gray-800 h-full flex flex-col opacity-30 pointer-events-none transition-opacity duration-300">
+                <h3 class="bungee text-xl text-center mb-4 text-blue-400">GAMBLE</h3>
+                
+                <div class="flex-grow flex flex-col gap-2 mb-4">
+                    <div id="ladder-top" class="gamble-container flex-1 rounded-lg flex flex-col items-center justify-center">
+                        <div class="text-[10px] font-bold text-gray-500 uppercase">Potential</div>
+                        <div id="ladder-potential-win" class="bungee text-2xl text-green-400">$0</div>
+                        <div id="light-double" class="gamble-light w-full py-2 text-center bungee text-sm bg-green-500/20 text-green-400 mt-2 border-t border-green-500/30">DOUBLE</div>
+                    </div>
+
+                    <div id="ladder-bottom" class="gamble-container flex-1 rounded-lg flex flex-col items-center justify-center">
+                        <div id="light-lose" class="gamble-light w-full py-2 text-center bungee text-sm bg-pink-500/20 text-pink-400 mb-2 border-b border-pink-500/30">LOSE</div>
+                        <div class="text-[10px] font-bold text-gray-500 uppercase">Current</div>
+                        <div id="ladder-current-win" class="bungee text-2xl neon-text-gold">$0</div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <button id="gamble-stop-btn" onclick="stopGamble()" class="gamble-btn gamble-btn-stop w-full py-3 rounded-lg bungee text-sm text-black">STOP</button>
+                    <button id="collect-btn" onclick="collectWin()" class="collect-btn w-full py-3 rounded-lg bungee text-sm text-white">COLLECT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SYMBOLS = [
+            { id: 'cherry', char: '🍒', value: 5 },
+            { id: 'lemon', char: '🍋', value: 10 },
+            { id: 'orange', char: '🍊', value: 15 },
+            { id: 'plum', char: '🍇', value: 25 },
+            { id: 'bell', char: '🔔', value: 50 },
+            { id: 'diamond', char: '💎', value: 100 },
+            { id: 'seven', char: '7️⃣', value: 500 }
+        ];
+
+        const REEL_COUNT = 3;
+        const SYMBOL_HEIGHT = 120;
+        const STRIP_SIZE = 100;
+
+        let balance = 100; // Updated starting balance to $100
+        let currentBet = 10;
+        let isSpinning = false;
+        let volume = 0.5;
+        let nudgesRemaining = 0;
+        let pendingWin = 0;
+        let gambleState = 0; 
+        let gambleInterval = null;
+        let gambleSpeed = 200;
+        
+        let currentIndices = [0, 0, 0];
+        let reelStrips = [[], [], []];
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function playSound(freq, type = 'sine', duration = 0.1, vol = 0.2) {
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol * volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playCollectSound() {
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((f, i) => {
+                setTimeout(() => playSound(f, 'sine', 0.2, 0.1), i * 60);
+            });
+        }
+
+        function updateTicker(text) {
+            const ticker = document.getElementById('ticker');
+            ticker.classList.remove('animate-scroll');
+            void ticker.offsetWidth; 
+            ticker.innerText = text;
+            ticker.classList.add('animate-scroll');
+        }
+
+        function init() {
+            const list = document.getElementById('payout-list');
+            [...SYMBOLS].reverse().forEach(s => {
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center text-xs font-bold border-b border-gray-800 pb-1 text-gray-400";
+                row.innerHTML = `<span>${s.char} x3</span> <span class="text-yellow-400">x${s.value}</span>`;
+                list.appendChild(row);
+            });
+
+            for (let i = 0; i < REEL_COUNT; i++) {
+                setupReel(i);
+            }
+            updateDisplays();
+        }
+
+        function setupReel(reelIdx) {
+            const reel = document.getElementById(`reel-${reelIdx}`);
+            reel.innerHTML = '';
+            reelStrips[reelIdx] = [];
+            for (let i = 0; i < STRIP_SIZE; i++) {
+                const symbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+                reelStrips[reelIdx].push(symbol);
+                const div = document.createElement('div');
+                div.className = 'symbol';
+                div.innerHTML = symbol.char;
+                reel.appendChild(div);
+            }
+            const randomStart = Math.floor(Math.random() * (STRIP_SIZE - 15)) + 5;
+            currentIndices[reelIdx] = randomStart;
+            reel.style.transition = 'none';
+            reel.style.transform = `translateY(-${(randomStart * SYMBOL_HEIGHT) - 60}px)`;
+        }
+
+        function adjustBet(amount) {
+            if (isSpinning || nudgesRemaining > 0 || pendingWin > 0) return;
+            const newBet = currentBet + amount;
+            if (newBet >= 5 && newBet <= balance) {
+                currentBet = newBet;
+                playSound(440, 'sine', 0.05, 0.1);
+            }
+            updateDisplays();
+        }
+
+        function updateVolume(val) { volume = val; }
+
+        function updateDisplays() {
+            document.getElementById('balance-display').innerText = `$${balance.toLocaleString()}`;
+            document.getElementById('bet-display').innerText = `$${currentBet}`;
+            document.getElementById('nudge-display').innerText = nudgesRemaining;
+            
+            const spinBtn = document.getElementById('spin-btn');
+            const gamblePanel = document.getElementById('gamble-panel');
+            
+            spinBtn.disabled = balance < currentBet || isSpinning || nudgesRemaining > 0 || pendingWin > 0;
+
+            const nudgeCont = document.getElementById('nudge-count-container');
+            if (nudgesRemaining > 0) nudgeCont.classList.add('active');
+            else nudgeCont.classList.remove('active');
+
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`nudge-${i}`).disabled = isSpinning || nudgesRemaining <= 0 || currentIndices[i] <= 0 || pendingWin > 0;
+            }
+
+            if (pendingWin > 0) {
+                gamblePanel.style.opacity = "1";
+                gamblePanel.style.pointerEvents = "all";
+                document.getElementById('ladder-current-win').innerText = `$${pendingWin.toLocaleString()}`;
+                document.getElementById('ladder-potential-win').innerText = `$${(pendingWin * 2).toLocaleString()}`;
+            } else {
+                gamblePanel.style.opacity = "0.3";
+                gamblePanel.style.pointerEvents = "none";
+                document.getElementById('ladder-current-win').innerText = "$0";
+                document.getElementById('ladder-potential-win').innerText = "$0";
+            }
+        }
+
+        async function spin() {
+            if (isSpinning || balance < currentBet || nudgesRemaining > 0 || pendingWin > 0) return;
+            isSpinning = true;
+            balance -= currentBet;
+            nudgesRemaining = 0;
+            pendingWin = 0;
+            updateDisplays();
+            document.getElementById('win-display').innerText = '$0';
+            updateTicker("SPINNING... GOOD LUCK!");
+            playSound(150, 'sawtooth', 0.1, 0.2);
+
+            const reelElements = [0, 1, 2].map(id => document.getElementById(`reel-${id}`));
+            reelElements.forEach((reel, i) => {
+                const newTarget = Math.floor(Math.random() * (STRIP_SIZE - 20)) + 10;
+                reel.style.transition = 'none';
+                reel.style.transform = `translateY(-${(STRIP_SIZE - 5) * SYMBOL_HEIGHT}px)`;
+                reel.offsetHeight; 
+                currentIndices[i] = newTarget;
+
+                setTimeout(() => {
+                    const duration = 2 + (i * 0.6);
+                    reel.style.transition = `transform ${duration}s cubic-bezier(0.15, 0, 0.1, 1)`;
+                    reel.style.transform = `translateY(-${(currentIndices[i] * SYMBOL_HEIGHT) - 60}px)`;
+                    
+                    let ticks = 30;
+                    let tc = 0;
+                    const tint = setInterval(() => {
+                        if (tc >= ticks) clearInterval(tint);
+                        playSound(100 + (tc * 5), 'sine', 0.015, 0.02);
+                        tc++;
+                    }, (duration * 1000) / ticks);
+                }, 50);
+            });
+
+            setTimeout(() => {
+                isSpinning = false;
+                const winMultiplier = checkWin();
+                if (winMultiplier > 0) {
+                    processWin(currentBet * winMultiplier);
+                } else {
+                    if (Math.random() > 0.7) {
+                        nudgesRemaining = Math.floor(Math.random() * 3) + 1;
+                        updateTicker(`${nudgesRemaining} NUDGES AWARDED! USE THEM NOW!`);
+                        playSound(600, 'sine', 0.2, 0.1);
+                    } else {
+                        updateTicker("BAD LUCK... TRY AGAIN!");
+                    }
+                }
+                updateDisplays();
+            }, 3500);
+        }
+
+        function nudge(reelIdx) {
+            if (nudgesRemaining <= 0 || isSpinning) return;
+            nudgesRemaining--;
+            currentIndices[reelIdx]--;
+            const reel = document.getElementById(`reel-${reelIdx}`);
+            reel.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+            reel.style.transform = `translateY(-${(currentIndices[reelIdx] * SYMBOL_HEIGHT) - 60}px)`;
+            playSound(200, 'sine', 0.1, 0.1);
+            updateDisplays();
+            setTimeout(() => {
+                const mult = checkWin();
+                if (mult > 0) {
+                    nudgesRemaining = 0;
+                    processWin(currentBet * mult);
+                } else if (nudgesRemaining === 0) {
+                    updateTicker("NUDGES USED UP... SPIN AGAIN!");
+                }
+            }, 250);
+        }
+
+        function processWin(winAmt) {
+            document.getElementById('win-display').innerText = `+$${winAmt.toLocaleString()}`;
+            if (Math.random() < 0.2) {
+                updateTicker(`WIN! $${winAmt.toLocaleString()}... GAMBLE FEATURE AWARDED!`);
+                startGambleSequence(winAmt);
+            } else {
+                balance += winAmt;
+                updateTicker(`WIN! $${winAmt.toLocaleString()} COLLECTED!`);
+                playCollectSound();
+            }
+            updateDisplays();
+        }
+
+        function checkWin() {
+            const r = [ reelStrips[0][currentIndices[0]], reelStrips[1][currentIndices[1]], reelStrips[2][currentIndices[2]] ];
+            if (r[0].id === r[1].id && r[1].id === r[2].id) return r[0].value;
+            if (r[0].id === r[1].id || r[1].id === r[2].id || r[0].id === r[2].id) return 2;
+            return 0;
+        }
+
+        function startGambleSequence(amount) {
+            pendingWin = amount;
+            gambleSpeed = 250;
+            startBlinking();
+            updateDisplays();
+        }
+
+        function startBlinking() {
+            if (gambleInterval) clearInterval(gambleInterval);
+            gambleInterval = setInterval(() => {
+                gambleState = gambleState === 0 ? 1 : 0;
+                const d = document.getElementById('light-double');
+                const l = document.getElementById('light-lose');
+                if (gambleState === 1) {
+                    d.classList.add('on'); l.classList.remove('on');
+                    playSound(800, 'sine', 0.05, 0.05);
+                } else {
+                    l.classList.add('on'); d.classList.remove('on');
+                    playSound(400, 'sine', 0.05, 0.05);
+                }
+            }, gambleSpeed);
+        }
+
+        function stopGamble() {
+            if (pendingWin <= 0) return;
+            clearInterval(gambleInterval);
+            gambleInterval = null;
+
+            if (gambleState === 1) {
+                pendingWin *= 2;
+                updateTicker(`GAMBLE WON! $${pendingWin.toLocaleString()}... KEEP GOING?`);
+                playSound(1000, 'square', 0.3, 0.1);
+                gambleSpeed = Math.max(80, gambleSpeed - 30);
+                startBlinking();
+                updateDisplays();
+            } else {
+                updateTicker("BUMMER... YOU LOST IT ALL! SPIN AGAIN!");
+                playSound(100, 'sawtooth', 0.5, 0.2);
+                pendingWin = 0;
+                document.getElementById('light-lose').classList.remove('on');
+                document.getElementById('light-double').classList.remove('on');
+                updateDisplays();
+            }
+        }
+
+        function collectWin() {
+            if (pendingWin <= 0) return;
+            clearInterval(gambleInterval);
+            gambleInterval = null;
+            balance += pendingWin;
+            updateTicker(`$${pendingWin.toLocaleString()} COLLECTED... WELL DONE!`);
+            playCollectSound();
+            pendingWin = 0;
+            document.getElementById('light-lose').classList.remove('on');
+            document.getElementById('light-double').classList.remove('on');
+            updateDisplays();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
