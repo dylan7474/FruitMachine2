@@ -136,11 +136,17 @@
             box-shadow: 0 2px 0 #991b33, 0 5px 10px rgba(255, 45, 85, 0.4);
         }
 
-        .nudge-btn, .gamble-btn {
+        .nudge-btn, .gamble-btn, .bank-btn {
             background: linear-gradient(135deg, #007aff 0%, #0051a8 100%);
             box-shadow: 0 4px 0 #003a78;
             transition: all 0.1s ease;
         }
+        
+        .bank-btn {
+            background: linear-gradient(135deg, #ff9500 0%, #cc7a00 100%);
+            box-shadow: 0 4px 0 #995c00;
+        }
+
         .gamble-btn-stop {
             background: linear-gradient(135deg, #ffcc00 0%, #cc9900 100%);
             box-shadow: 0 4px 0 #996600;
@@ -150,11 +156,16 @@
             box-shadow: 0 4px 0 #1a632c;
         }
 
-        .nudge-btn:active:not(:disabled), .gamble-btn:active:not(:disabled) {
+        .nudge-btn:active:not(:disabled), .gamble-btn:active:not(:disabled), .bank-btn:active:not(:disabled) {
             transform: translateY(2px);
             box-shadow: 0 1px 0 #003a78;
         }
-        .nudge-btn:disabled, .gamble-btn:disabled {
+        
+        .bank-btn:active:not(:disabled) {
+            box-shadow: 0 1px 0 #995c00;
+        }
+
+        .nudge-btn:disabled, .gamble-btn:disabled, .bank-btn:disabled {
             filter: grayscale(1);
             opacity: 0.3;
             cursor: not-allowed;
@@ -244,10 +255,11 @@
                 </div>
 
                 <!-- Nudge Buttons -->
-                <div class="grid grid-cols-3 gap-2 mt-4">
+                <div class="grid grid-cols-4 gap-2 mt-4">
                     <button id="nudge-0" onclick="nudge(0)" disabled class="nudge-btn py-2 rounded-lg bungee text-xs text-white">NUDGE</button>
                     <button id="nudge-1" onclick="nudge(1)" disabled class="nudge-btn py-2 rounded-lg bungee text-xs text-white">NUDGE</button>
                     <button id="nudge-2" onclick="nudge(2)" disabled class="nudge-btn py-2 rounded-lg bungee text-xs text-white">NUDGE</button>
+                    <button id="bank-btn" onclick="bankNudges()" disabled class="bank-btn py-2 rounded-lg bungee text-xs text-white">BANK</button>
                 </div>
 
                 <div class="mt-8 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -312,7 +324,7 @@
         const SYMBOL_HEIGHT = 120;
         const STRIP_SIZE = 100;
 
-        let balance = 100; // Updated starting balance to $100
+        let balance = 100; 
         let currentBet = 10;
         let isSpinning = false;
         let volume = 0.5;
@@ -321,6 +333,8 @@
         let gambleState = 0; 
         let gambleInterval = null;
         let gambleSpeed = 200;
+        let gambleAwardedForCurrentWin = false;
+        let nudgesAreActiveForTurn = false; 
         
         let currentIndices = [0, 0, 0];
         let reelStrips = [[], [], []];
@@ -411,15 +425,20 @@
             
             const spinBtn = document.getElementById('spin-btn');
             const gamblePanel = document.getElementById('gamble-panel');
+            const bankBtn = document.getElementById('bank-btn');
             
-            spinBtn.disabled = balance < currentBet || isSpinning || nudgesRemaining > 0 || pendingWin > 0;
+            // Allow spin unless mid-spin or mid-gamble (pendingWin with lights blinking)
+            spinBtn.disabled = balance < currentBet || isSpinning || (gambleInterval !== null);
 
             const nudgeCont = document.getElementById('nudge-count-container');
             if (nudgesRemaining > 0) nudgeCont.classList.add('active');
             else nudgeCont.classList.remove('active');
 
+            bankBtn.disabled = isSpinning || nudgesRemaining <= 0 || (gambleInterval !== null) || !nudgesAreActiveForTurn;
+
             for (let i = 0; i < 3; i++) {
-                document.getElementById(`nudge-${i}`).disabled = isSpinning || nudgesRemaining <= 0 || currentIndices[i] <= 0 || pendingWin > 0;
+                // Nudges stay active if you have bank, regardless of pendingWin, UNLESS gamble lights are blinking
+                document.getElementById(`nudge-${i}`).disabled = isSpinning || nudgesRemaining <= 0 || currentIndices[i] <= 0 || (gambleInterval !== null);
             }
 
             if (pendingWin > 0) {
@@ -436,11 +455,15 @@
         }
 
         async function spin() {
-            if (isSpinning || balance < currentBet || nudgesRemaining > 0 || pendingWin > 0) return;
+            if (isSpinning || balance < currentBet || (gambleInterval !== null)) return;
             isSpinning = true;
             balance -= currentBet;
-            nudgesRemaining = 0;
+            
+            nudgesAreActiveForTurn = false;
+            
+            // If we spin while a win is on the line, we effectively forfeit it if it wasn't collected
             pendingWin = 0;
+            gambleAwardedForCurrentWin = false;
             updateDisplays();
             document.getElementById('win-display').innerText = '$0';
             updateTicker("SPINNING... GOOD LUCK!");
@@ -476,8 +499,10 @@
                     processWin(currentBet * winMultiplier);
                 } else {
                     if (Math.random() > 0.7) {
-                        nudgesRemaining = Math.floor(Math.random() * 3) + 1;
-                        updateTicker(`${nudgesRemaining} NUDGES AWARDED! USE THEM NOW!`);
+                        const awarded = Math.floor(Math.random() * 3) + 1;
+                        nudgesRemaining = Math.min(10, nudgesRemaining + awarded);
+                        nudgesAreActiveForTurn = true;
+                        updateTicker(`${awarded} NUDGES AWARDED! USE THEM OR BANK THEM!`);
                         playSound(600, 'sine', 0.2, 0.1);
                     } else {
                         updateTicker("BAD LUCK... TRY AGAIN!");
@@ -488,36 +513,77 @@
         }
 
         function nudge(reelIdx) {
-            if (nudgesRemaining <= 0 || isSpinning) return;
+            if (nudgesRemaining <= 0 || isSpinning || gambleInterval !== null) return;
             nudgesRemaining--;
+            nudgesAreActiveForTurn = true;
             currentIndices[reelIdx]--;
             const reel = document.getElementById(`reel-${reelIdx}`);
             reel.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
             reel.style.transform = `translateY(-${(currentIndices[reelIdx] * SYMBOL_HEIGHT) - 60}px)`;
             playSound(200, 'sine', 0.1, 0.1);
-            updateDisplays();
+            
+            // Check for wins every time we nudge
             setTimeout(() => {
                 const mult = checkWin();
                 if (mult > 0) {
-                    nudgesRemaining = 0;
-                    processWin(currentBet * mult);
-                } else if (nudgesRemaining === 0) {
+                    const winAmt = currentBet * mult;
+                    pendingWin = winAmt;
+                    document.getElementById('win-display').innerText = `+$${winAmt.toLocaleString()}`;
+                    updateTicker(`WIN ON LINE: $${winAmt.toLocaleString()}... NUDGE FOR MORE OR COLLECT?`);
+                } else {
+                    // Reset pending win if we nudged away
+                    pendingWin = 0;
+                    document.getElementById('win-display').innerText = '$0';
+                    updateTicker("NUDGED AWAY FROM WIN... KEEP GOING?");
+                }
+
+                // If no nudges left and there IS a win, auto-trigger the gamble award check
+                if (nudgesRemaining === 0 && pendingWin > 0) {
+                    triggerFinalWinSequence(pendingWin);
+                } else if (nudgesRemaining === 0 && pendingWin === 0) {
                     updateTicker("NUDGES USED UP... SPIN AGAIN!");
                 }
+                updateDisplays();
             }, 250);
         }
 
+        function bankNudges() {
+            if (nudgesRemaining <= 0 || isSpinning) return;
+            nudgesAreActiveForTurn = false;
+            // If there's a win on the line but they click Bank, they lose the win to save the nudges
+            pendingWin = 0;
+            document.getElementById('win-display').innerText = '$0';
+            updateTicker(`${nudgesRemaining} NUDGES BANKED... SPIN AGAIN!`);
+            playSound(440, 'sine', 0.2, 0.1);
+            updateDisplays();
+        }
+
         function processWin(winAmt) {
+            pendingWin = winAmt;
             document.getElementById('win-display').innerText = `+$${winAmt.toLocaleString()}`;
+            
+            // If user has NO nudges, proceed to gamble check immediately
+            if (nudgesRemaining === 0) {
+                triggerFinalWinSequence(winAmt);
+            } else {
+                updateTicker(`WIN! $${winAmt.toLocaleString()} HELD... NUDGE FOR MORE OR COLLECT?`);
+            }
+            updateDisplays();
+        }
+
+        // Logic to decide if a win gets a gamble or auto-collect
+        function triggerFinalWinSequence(winAmt) {
             if (Math.random() < 0.2) {
-                updateTicker(`WIN! $${winAmt.toLocaleString()}... GAMBLE FEATURE AWARDED!`);
+                gambleAwardedForCurrentWin = true;
+                updateTicker(`$${winAmt.toLocaleString()} WIN... GAMBLE FEATURE AWARDED!`);
                 startGambleSequence(winAmt);
             } else {
                 balance += winAmt;
-                updateTicker(`WIN! $${winAmt.toLocaleString()} COLLECTED!`);
+                updateTicker(`$${winAmt.toLocaleString()} AUTOMATICALLY COLLECTED!`);
                 playCollectSound();
+                pendingWin = 0;
+                nudgesRemaining = 0;
             }
-            updateDisplays();
         }
 
         function checkWin() {
@@ -550,8 +616,15 @@
             }, gambleSpeed);
         }
 
+        function stopGambleInterval() {
+            if (gambleInterval) clearInterval(gambleInterval);
+            gambleInterval = null;
+            document.getElementById('light-lose').classList.remove('on');
+            document.getElementById('light-double').classList.remove('on');
+        }
+
         function stopGamble() {
-            if (pendingWin <= 0) return;
+            if (pendingWin <= 0 || gambleInterval === null) return;
             clearInterval(gambleInterval);
             gambleInterval = null;
 
@@ -566,6 +639,9 @@
                 updateTicker("BUMMER... YOU LOST IT ALL! SPIN AGAIN!");
                 playSound(100, 'sawtooth', 0.5, 0.2);
                 pendingWin = 0;
+                nudgesRemaining = 0; 
+                nudgesAreActiveForTurn = false;
+                gambleAwardedForCurrentWin = false;
                 document.getElementById('light-lose').classList.remove('on');
                 document.getElementById('light-double').classList.remove('on');
                 updateDisplays();
@@ -574,15 +650,22 @@
 
         function collectWin() {
             if (pendingWin <= 0) return;
-            clearInterval(gambleInterval);
-            gambleInterval = null;
-            balance += pendingWin;
-            updateTicker(`$${pendingWin.toLocaleString()} COLLECTED... WELL DONE!`);
-            playCollectSound();
-            pendingWin = 0;
-            document.getElementById('light-lose').classList.remove('on');
-            document.getElementById('light-double').classList.remove('on');
-            updateDisplays();
+            
+            // If they click collect while gamble lights are blinking, they take the win
+            // If they click collect while nudges were available, we check if they get a gamble award
+            if (gambleInterval === null) {
+                triggerFinalWinSequence(pendingWin);
+            } else {
+                stopGambleInterval();
+                balance += pendingWin;
+                updateTicker(`$${pendingWin.toLocaleString()} COLLECTED... WELL DONE!`);
+                playCollectSound();
+                pendingWin = 0;
+                nudgesRemaining = 0; 
+                nudgesAreActiveForTurn = false;
+                gambleAwardedForCurrentWin = false;
+                updateDisplays();
+            }
         }
 
         window.onload = init;
