@@ -239,20 +239,20 @@
         <!-- LED Displays Cluster -->
         <div class="grid grid-cols-3 gap-2 mb-4">
             <!-- Credits -->
-            <div id="credit-window" class="led-screen p-2 rounded flex flex-col items-center justify-center transition-all duration-300">
-                <div id="credit-label" class="text-[8px] uppercase tracking-wider text-gray-400 mb-1">CREDITS</div>
-                <div id="balance-display" class="led-font text-xl transition-all duration-200">100</div>
+            <div id="credit-window" class="led-screen rounded relative flex flex-col items-center justify-center transition-all duration-300 h-[80px]">
+                <div id="credit-label" class="text-[8px] uppercase tracking-wider text-gray-400 absolute top-1.5">CREDITS</div>
+                <div id="balance-display" class="led-font text-xl transition-all duration-200 mt-3">100</div>
             </div>
 
             <!-- Nudges -->
-            <div id="nudge-count-container" class="led-screen p-2 rounded flex flex-col items-center justify-center">
-                <div class="text-[8px] uppercase tracking-wider text-gray-400 mb-1">NUDGES</div>
-                <div id="nudge-display" class="led-font text-xl">0</div>
+            <div id="nudge-count-container" class="led-screen rounded relative flex flex-col items-center justify-center h-[80px]">
+                <div class="text-[8px] uppercase tracking-wider text-gray-400 absolute top-1.5">NUDGES</div>
+                <div id="nudge-display" class="led-font text-xl mt-3">0</div>
             </div>
 
             <!-- Gamble/Win Zone -->
-            <div id="gamble-window" class="led-screen p-2 rounded relative flex flex-col items-center justify-center min-h-[50px]">
-                <div class="text-[8px] uppercase tracking-wider text-gray-400 mb-1 absolute top-1">ZONE</div>
+            <div id="gamble-window" class="led-screen rounded relative flex flex-col items-center justify-center h-[80px]">
+                <div class="text-[8px] uppercase tracking-wider text-gray-400 absolute top-1.5">ZONE</div>
                 
                 <div id="gamble-overlay" class="hidden w-full flex flex-col items-center justify-center gap-0 mt-3">
                     <div id="light-double" class="gamble-light led-font text-[10px] leading-tight">DOUBLE</div>
@@ -621,8 +621,8 @@
             nudgesAreActiveForTurn = false;
             updateDisplays();
             
-            // New mechanical chunky spin sound
-            playChunkyButton();
+            // Chunky button sound silenced for now
+            // playChunkyButton();
 
             const reelElements = [0, 1, 2].map(id => document.getElementById(`reel-${id}`));
             reelElements.forEach((reel, i) => {
