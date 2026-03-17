@@ -292,7 +292,6 @@
 
     </div>
 
-    <!-- IDENTICAL JAVASCRIPT FROM PREVIOUS VERSION -->
     <script>
         const SYMBOLS = [
             { id: 'cherry', char: '🍒', value: 5 },
@@ -347,6 +346,68 @@
                 osc.stop(audioCtx.currentTime + duration);
             } catch(e) {}
         }
+
+        // --- NEW VINTAGE MECHANICAL SOUND FUNCTIONS ---
+        
+        function playChunkyButton() {
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                const t = audioCtx.currentTime;
+                
+                // Deep mechanical thud
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, t);
+                osc.frequency.exponentialRampToValueAtTime(20, t + 0.15);
+                gain.gain.setValueAtTime(0.4, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.15);
+                
+                // Metallic clack
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(1200, t + 0.02);
+                osc2.frequency.exponentialRampToValueAtTime(400, t + 0.08);
+                gain2.gain.setValueAtTime(0.15, t + 0.02);
+                gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.start(t + 0.02);
+                osc2.stop(t + 0.08);
+            } catch(e) {}
+        }
+
+        function playReelClick() {
+            // Short, noisy burst simulating gear teeth
+            playSound(60 + Math.random() * 40, 'square', 0.02, 0.03);
+            setTimeout(() => playSound(800 + Math.random() * 200, 'triangle', 0.01, 0.02), 5);
+        }
+
+        function playReelStop() {
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                const t = audioCtx.currentTime;
+                // Heavy physical thunk for reel locking
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(80, t);
+                osc.frequency.exponentialRampToValueAtTime(10, t + 0.2);
+                gain.gain.setValueAtTime(0.5, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            } catch(e) {}
+        }
+        
+        // ----------------------------------------------
 
         function playWinPartySound(amount) {
             const level = amount < 50 ? 1 : (amount < 200 ? 2 : 3);
@@ -559,7 +620,9 @@
             balance -= currentBet;
             nudgesAreActiveForTurn = false;
             updateDisplays();
-            playSound(150, 'sawtooth', 0.1, 0.1);
+            
+            // New mechanical chunky spin sound
+            playChunkyButton();
 
             const reelElements = [0, 1, 2].map(id => document.getElementById(`reel-${id}`));
             reelElements.forEach((reel, i) => {
@@ -572,15 +635,23 @@
 
                 setTimeout(() => {
                     const duration = 2 + (i * 0.6);
+                    const durationMs = duration * 1000;
                     reel.style.transition = `transform ${duration}s cubic-bezier(0.15, 0, 0.1, 1)`;
                     reel.style.transform = `translateY(-${(currentIndices[i] * SYMBOL_HEIGHT) - 60}px)`;
                     
-                    let ticks = 30, tc = 0;
+                    let elapsed = 0;
+                    const tickRate = 70; // 70ms mechanical clicks
                     const tint = setInterval(() => {
-                        if (tc >= ticks) clearInterval(tint);
-                        playSound(100 + (tc * 5), 'sine', 0.015, 0.02);
-                        tc++;
-                    }, (duration * 1000) / ticks);
+                        elapsed += tickRate;
+                        if (elapsed >= durationMs) {
+                            clearInterval(tint);
+                        } else {
+                            playReelClick();
+                        }
+                    }, tickRate);
+                    
+                    // Heavy thunk when reel locks in place
+                    setTimeout(playReelStop, durationMs);
                 }, 50);
             });
 
@@ -620,7 +691,9 @@
             const reel = document.getElementById(`reel-${reelIdx}`);
             reel.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
             reel.style.transform = `translateY(-${(currentIndices[reelIdx] * SYMBOL_HEIGHT) - 60}px)`;
-            playSound(200, 'sine', 0.1, 0.1);
+            
+            // Mechanical nudge sound
+            playReelStop();
             
             setTimeout(() => {
                 const mult = checkWin();
