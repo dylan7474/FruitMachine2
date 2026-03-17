@@ -33,19 +33,36 @@
             border: 4px solid #333;
             box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 20px rgba(255, 45, 85, 0.2);
             border-radius: 2rem;
+            transition: transform 0.1s ease-out;
         }
 
-        /* Flashing Animations */
+        /* Party Animations */
         @keyframes button-pulse {
             0%, 100% { filter: brightness(1); transform: scale(1); }
             50% { filter: brightness(1.8); transform: scale(1.02); }
         }
 
+        @keyframes credit-flash-intense {
+            0%, 100% { background-color: #000; color: var(--neon-gold); box-shadow: inset 0 0 0px var(--neon-gold); }
+            33% { background-color: var(--neon-gold); color: #000; box-shadow: 0 0 30px var(--neon-gold); }
+            66% { background-color: #fff; color: #000; box-shadow: 0 0 50px #fff; }
+        }
+
+        @keyframes cabinet-shake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(2px, -2px) rotate(0.5deg); }
+            50% { transform: translate(-2px, 2px) rotate(-0.5deg); }
+            75% { transform: translate(2px, 2px) rotate(0.5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
         .flash-nudge { animation: button-pulse 0.4s infinite; }
         .flash-hold { animation: button-pulse 0.3s infinite; }
         .flash-bank { animation: button-pulse 0.6s infinite; }
-        .flash-collect { animation: button-pulse 0.5s infinite; }
+        .flash-collect { animation: button-pulse 0.4s infinite; }
         .flash-gamble { animation: button-pulse 0.2s infinite; }
+        .win-party { animation: credit-flash-intense 0.2s infinite; }
+        .shake { animation: cabinet-shake 0.1s infinite; }
 
         .reel-window {
             height: 240px;
@@ -111,24 +128,15 @@
         .neon-text-pink { text-shadow: 0 0 10px var(--neon-pink); color: var(--neon-pink); }
         .neon-text-gold { text-shadow: 0 0 10px var(--neon-gold); color: var(--neon-gold); }
         .neon-text-blue { text-shadow: 0 0 10px var(--neon-blue); color: var(--neon-blue); }
-        .neon-text-green { text-shadow: 0 0 10px var(--neon-green); color: var(--neon-green); }
 
         .spin-button {
             background: linear-gradient(135deg, #ff2d55 0%, #ff5e3a 100%);
-            transition: all 0.1s ease;
             box-shadow: 0 6px 0 #991b33, 0 10px 20px rgba(255, 45, 85, 0.4);
         }
 
-        .spin-button:hover:not(:disabled) { filter: brightness(1.1); }
-        .spin-button:active:not(:disabled) {
-            transform: translateY(4px);
-            box-shadow: 0 2px 0 #991b33, 0 5px 10px rgba(255, 45, 85, 0.4);
-        }
-
-        .nudge-btn, .gamble-btn, .bank-btn {
+        .nudge-btn, .gamble-btn, .bank-btn, .collect-btn {
             background: linear-gradient(135deg, #007aff 0%, #0051a8 100%);
             box-shadow: 0 4px 0 #003a78;
-            transition: all 0.1s ease;
         }
 
         .nudge-btn.hold-active {
@@ -152,14 +160,10 @@
             box-shadow: 0 4px 0 #1a632c;
         }
 
-        .nudge-btn:active:not(:disabled), .gamble-btn:active:not(:disabled), .bank-btn:active:not(:disabled), .collect-btn:active:not(:disabled) {
+        .nudge-btn:active:not(:disabled), .gamble-btn:active:not(:disabled), .bank-btn:active:not(:disabled), .collect-btn:active:not(:disabled), .spin-button:active:not(:disabled) {
             transform: translateY(2px);
-            box-shadow: 0 1px 0 #003a78;
+            box-shadow: none;
         }
-        
-        .bank-btn:active:not(:disabled) { box-shadow: 0 1px 0 #995c00; }
-        .gamble-btn:active:not(:disabled) { box-shadow: 0 1px 0 #996600; }
-        .collect-btn:active:not(:disabled) { box-shadow: 0 1px 0 #1a632c; }
 
         .nudge-btn:disabled, .gamble-btn:disabled, .bank-btn:disabled, .collect-btn:disabled {
             filter: grayscale(1);
@@ -171,41 +175,26 @@
         .spin-button:disabled {
             filter: grayscale(1) opacity(0.5);
             cursor: not-allowed;
-            transform: translateY(4px);
             box-shadow: none;
         }
 
-        @keyframes win-glow {
-            0%, 100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 0px var(--neon-gold)); }
-            50% { transform: scale(1.1); filter: brightness(1.3) drop-shadow(0 0 20px var(--neon-gold)); }
-        }
-
-        .winning-symbol {
-            animation: win-glow 0.6s ease-in-out infinite;
-            z-index: 20;
-        }
-
-        .nudge-indicator {
-            transition: all 0.3s ease;
-            transform: scale(0);
-        }
-        .nudge-indicator.active { transform: scale(1); }
-
         .gamble-light {
-            transition: opacity 0.05s ease;
+            transition: all 0.05s ease;
             opacity: 0.1;
+            font-size: 1.5rem;
+            letter-spacing: 0.1rem;
         }
         .gamble-light.on {
             opacity: 1;
-            filter: brightness(1.5);
-            text-shadow: 0 0 10px currentColor;
+            filter: brightness(1.8);
+            transform: scale(1.15);
+            text-shadow: 0 0 15px currentColor;
         }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div class="max-w-6xl w-full">
-        <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="bungee text-6xl md:text-8xl neon-text-pink italic tracking-tighter">NEON REELS</h1>
         </div>
@@ -215,35 +204,33 @@
             <!-- Left Side: Payout Table -->
             <div class="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-gray-800 hidden lg:block">
                 <h3 class="bungee text-xl text-center mb-4 text-gray-400">PAYS</h3>
-                <div id="payout-list" class="space-y-2"></div>
+                <div id="payout-list" class="space-y-2 text-gray-300"></div>
+                <div class="mt-6 border-t border-gray-800 pt-4 text-center">
+                    <div class="text-[10px] uppercase text-gray-500 font-bold mb-1">Fixed Stake</div>
+                    <div class="text-2xl bungee neon-text-blue">$10</div>
+                </div>
             </div>
 
             <!-- Center: Machine -->
-            <div class="machine-container p-6 col-span-1 lg:col-span-3 shadow-2xl flex flex-col justify-between">
+            <div id="machine" class="machine-container p-6 col-span-1 lg:col-span-3 shadow-2xl flex flex-col justify-between">
                 
                 <div class="flex justify-between gap-4 mb-6">
-                    <div class="flex-1 bg-black border-2 border-gray-700 p-3 rounded-lg text-center">
-                        <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">Balance</div>
-                        <div id="balance-display" class="text-2xl bungee neon-text-gold">$100</div>
+                    <!-- Credits Window -->
+                    <div class="flex-1 bg-black border-2 border-gray-700 p-3 rounded-lg text-center transition-all duration-300 overflow-hidden" id="credit-window">
+                        <div class="text-[10px] text-blue-400 font-bold uppercase mb-1" id="credit-label">Credits</div>
+                        <div id="balance-display" class="text-2xl bungee neon-text-gold transition-all duration-200">$100</div>
                     </div>
+
                     <div id="nudge-count-container" class="nudge-indicator flex-1 bg-black border-2 border-blue-600 p-3 rounded-lg text-center">
                         <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">Nudges</div>
                         <div id="nudge-display" class="text-2xl bungee neon-text-blue">0</div>
                     </div>
                     
-                    <!-- Integrated Win/Gamble Window -->
-                    <div id="win-window" class="flex-1 bg-black border-2 border-gray-700 p-3 rounded-lg text-center relative overflow-hidden transition-all duration-300">
-                        <div id="win-label" class="text-[10px] text-pink-400 font-bold uppercase mb-1">Last Win</div>
-                        
-                        <!-- Gamble Overlay Content (Hidden by default) -->
-                        <div id="gamble-overlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90 p-1">
-                            <div id="light-double" class="gamble-light text-[8px] bungee text-green-400 leading-none">DOUBLE</div>
-                            <div id="ladder-potential-win" class="text-sm bungee text-green-400">$0</div>
-                            <div class="w-full border-t border-gray-800 my-1"></div>
-                            <div id="light-lose" class="gamble-light text-[8px] bungee text-pink-400 leading-none">LOSE</div>
-                        </div>
-
-                        <div id="win-display" class="text-2xl bungee text-pink-500">$0</div>
+                    <!-- Gamble Zone -->
+                    <div id="gamble-window" class="flex-1 bg-black border-2 border-gray-700 p-3 rounded-lg text-center relative overflow-hidden min-h-[80px] flex flex-col items-center justify-center">
+                        <div class="text-[10px] text-pink-400 font-bold uppercase mb-1">Gamble Zone</div>
+                        <div id="light-double" class="gamble-light bungee text-green-400">DOUBLE</div>
+                        <div id="light-lose" class="gamble-light bungee text-pink-500">LOOSE</div>
                     </div>
                 </div>
 
@@ -255,39 +242,27 @@
                     <div id="reel-2" class="reel"></div>
                 </div>
 
-                <!-- Nudge/Hold Row directly beneath reels -->
+                <!-- Nudge/Hold Row -->
                 <div class="grid grid-cols-3 gap-0 border-b-4 border-l-4 border-r-4 border-gray-800 rounded-b-xl overflow-hidden mb-8">
                     <button id="ctrl-0" onclick="handleControlClick(0)" disabled class="nudge-btn py-5 bungee text-sm text-white border-r border-gray-800 rounded-none">NUDGE</button>
                     <button id="ctrl-1" onclick="handleControlClick(1)" disabled class="nudge-btn py-5 bungee text-sm text-white border-r border-gray-800 rounded-none">NUDGE</button>
                     <button id="ctrl-2" onclick="handleControlClick(2)" disabled class="nudge-btn py-5 bungee text-sm text-white rounded-none">NUDGE</button>
                 </div>
 
-                <!-- Main Action Deck -->
-                <div class="flex flex-col gap-6">
-                    <div class="flex items-center justify-center bg-black/50 rounded-full border border-gray-700 p-1 self-center">
-                        <button onclick="adjustBet(-5)" class="w-12 h-12 flex items-center justify-center text-2xl font-bold hover:text-pink-500 transition-colors">-</button>
-                        <div class="px-8 text-center min-w-[100px]">
-                            <div class="text-[10px] uppercase text-gray-500 font-bold">Bet</div>
-                            <div id="bet-display" class="text-2xl font-bold bungee">$10</div>
-                        </div>
-                        <button onclick="adjustBet(5)" class="w-12 h-12 flex items-center justify-center text-2xl font-bold hover:text-pink-500 transition-colors">+</button>
-                    </div>
-
-                    <!-- Consolidated Command Deck -->
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <button id="bank-btn" onclick="bankNudges()" disabled class="bank-btn py-6 rounded-xl text-xl bungee tracking-widest text-white">
-                            BANK
-                        </button>
-                        <button id="spin-btn" onclick="spin()" class="spin-button py-6 rounded-xl text-3xl bungee tracking-widest text-white">
-                            SPIN
-                        </button>
-                        <button id="gamble-action-btn" onclick="stopGamble()" disabled class="gamble-btn py-6 rounded-xl text-xl bungee tracking-widest">
-                            GAMBLE
-                        </button>
-                        <button id="collect-btn" onclick="collectWin()" disabled class="collect-btn py-6 rounded-xl text-xl bungee tracking-widest text-white">
-                            COLLECT
-                        </button>
-                    </div>
+                <!-- Action Deck -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button id="bank-btn" onclick="bankAction()" disabled class="bank-btn py-6 rounded-xl text-xl bungee tracking-widest text-white">
+                        BANK
+                    </button>
+                    <button id="spin-btn" onclick="spin()" class="spin-button py-6 rounded-xl text-3xl bungee tracking-widest text-white">
+                        SPIN
+                    </button>
+                    <button id="gamble-action-btn" onclick="stopGamble()" disabled class="gamble-btn py-6 rounded-xl text-xl bungee tracking-widest">
+                        GAMBLE
+                    </button>
+                    <button id="collect-btn" onclick="collectWin()" disabled class="collect-btn py-6 rounded-xl text-xl bungee tracking-widest text-white">
+                        COLLECT
+                    </button>
                 </div>
             </div>
         </div>
@@ -309,15 +284,15 @@
         const STRIP_SIZE = 100;
 
         let balance = 100; 
-        let currentBet = 10;
+        const currentBet = 10;
         let isSpinning = false;
         let nudgesRemaining = 0;
         let pendingWin = 0;
         let gambleState = 0; 
         let gambleInterval = null;
         let gambleSpeed = 200;
-        let gambleAwardedForCurrentWin = false;
         let nudgesAreActiveForTurn = false; 
+        let isFlashingWin = false;
         
         let holdsAwarded = false;
         let heldReels = [false, false, false];
@@ -344,18 +319,38 @@
             } catch(e) {}
         }
 
-        function playCollectSound() {
-            const notes = [523.25, 659.25, 783.99, 1046.50];
-            notes.forEach((f, i) => {
-                setTimeout(() => playSound(f, 'sine', 0.2, 0.2), i * 60);
-            });
+        function playWinPartySound(amount) {
+            const level = amount < 50 ? 1 : (amount < 200 ? 2 : 3);
+            if (level === 1) {
+                [523, 659, 783].forEach((f, i) => {
+                    setTimeout(() => playSound(f, 'sine', 0.2, 0.2), i * 80);
+                });
+            } else if (level === 2) {
+                const notes = [523, 659, 783, 1046, 783, 1046, 1318];
+                notes.forEach((f, i) => {
+                    setTimeout(() => playSound(f, 'triangle', 0.15, 0.2), i * 100);
+                });
+            } else {
+                let freq = 400;
+                for(let i=0; i<15; i++) {
+                    setTimeout(() => {
+                        playSound(freq, 'square', 0.1, 0.1);
+                        freq *= 1.1;
+                    }, i * 120);
+                }
+                setTimeout(() => {
+                    [1046, 1318, 1567, 2093].forEach((f, x) => {
+                        setTimeout(() => playSound(f, 'square', 0.4, 0.2), x * 150);
+                    });
+                }, 1800);
+            }
         }
 
         function init() {
             const list = document.getElementById('payout-list');
             [...SYMBOLS].reverse().forEach(s => {
                 const row = document.createElement('div');
-                row.className = "flex justify-between items-center text-sm font-bold border-b border-gray-800 pb-1 text-gray-400";
+                row.className = "flex justify-between items-center text-sm font-bold border-b border-gray-800 pb-1";
                 row.innerHTML = `<span>${s.char} x3</span> <span class="text-yellow-400">x${s.value}</span>`;
                 list.appendChild(row);
             });
@@ -384,28 +379,31 @@
             reel.style.transform = `translateY(-${(randomStart * SYMBOL_HEIGHT) - 60}px)`;
         }
 
-        function adjustBet(amount) {
-            if (isSpinning || nudgesRemaining > 0 || pendingWin > 0 || holdsAwarded) return;
-            const newBet = currentBet + amount;
-            if (newBet >= 5 && newBet <= balance) {
-                currentBet = newBet;
-                playSound(440, 'sine', 0.05, 0.1);
-            }
-            updateDisplays();
-        }
-
         function updateDisplays() {
-            document.getElementById('balance-display').innerText = `$${balance.toLocaleString()}`;
-            document.getElementById('bet-display').innerText = `$${currentBet}`;
+            const balanceDisp = document.getElementById('balance-display');
+            const creditLabel = document.getElementById('credit-label');
+            const creditWindow = document.getElementById('credit-window');
+
+            if (!isFlashingWin) {
+                if (gambleInterval) {
+                    creditLabel.innerText = "POT VALUE";
+                    balanceDisp.innerText = `$${pendingWin.toLocaleString()}`;
+                    balanceDisp.classList.add('win-party');
+                } else {
+                    balanceDisp.innerText = `$${balance.toLocaleString()}`;
+                    balanceDisp.classList.remove('win-party');
+                    creditLabel.innerText = "Credits";
+                    creditWindow.classList.remove('border-neon-gold');
+                }
+            }
+
             document.getElementById('nudge-display').innerText = nudgesRemaining;
             
             const spinBtn = document.getElementById('spin-btn');
             const bankBtn = document.getElementById('bank-btn');
             const collectBtn = document.getElementById('collect-btn');
             const gambleActionBtn = document.getElementById('gamble-action-btn');
-            const gambleOverlay = document.getElementById('gamble-overlay');
-            const winLabel = document.getElementById('win-label');
-            const winWindow = document.getElementById('win-window');
+            const gambleWindow = document.getElementById('gamble-window');
 
             spinBtn.disabled = balance < currentBet || isSpinning || (gambleInterval !== null);
 
@@ -413,34 +411,26 @@
             if (nudgesRemaining > 0) nudgeCont.classList.add('active');
             else nudgeCont.classList.remove('active');
 
-            bankBtn.disabled = isSpinning || nudgesRemaining <= 0 || (gambleInterval !== null) || !nudgesAreActiveForTurn;
+            // BANK: Flashes if you have active nudges that can be banked
+            bankBtn.disabled = isSpinning || nudgesRemaining <= 0 || !nudgesAreActiveForTurn || (gambleInterval !== null);
             if (!bankBtn.disabled) bankBtn.classList.add('flash-bank');
             else bankBtn.classList.remove('flash-bank');
 
-            collectBtn.disabled = pendingWin <= 0;
-            if (pendingWin > 0 && gambleInterval === null) collectBtn.classList.add('flash-collect');
+            // COLLECT: Strictly reserved for active Gamble features
+            collectBtn.disabled = gambleInterval === null;
+            if (!collectBtn.disabled) collectBtn.classList.add('flash-collect');
             else collectBtn.classList.remove('flash-collect');
 
             gambleActionBtn.disabled = gambleInterval === null;
             if (!gambleActionBtn.disabled) gambleActionBtn.classList.add('flash-gamble');
             else gambleActionBtn.classList.remove('flash-gamble');
 
-            // Handle integrated gamble window
-            if (gambleInterval !== null) {
-                gambleOverlay.classList.remove('hidden');
-                winLabel.innerText = "Current Win";
-                winWindow.classList.add('border-neon-gold');
-                document.getElementById('ladder-potential-win').innerText = `$${(pendingWin * 2).toLocaleString()}`;
-            } else {
-                gambleOverlay.classList.add('hidden');
-                winLabel.innerText = "Last Win";
-                winWindow.classList.remove('border-neon-gold');
-            }
+            if (gambleInterval !== null) gambleWindow.classList.add('border-neon-gold');
+            else gambleWindow.classList.remove('border-neon-gold');
 
             for (let i = 0; i < 3; i++) {
                 const ctrlBtn = document.getElementById(`ctrl-${i}`);
                 const reelEl = document.getElementById(`reel-${i}`);
-                
                 if (heldReels[i]) reelEl.classList.add('held');
                 else reelEl.classList.remove('held');
 
@@ -460,6 +450,28 @@
             }
         }
 
+        async function partyWin(amount) {
+            if (amount <= 0) return;
+            isFlashingWin = true;
+            const balanceDisp = document.getElementById('balance-display');
+            const creditLabel = document.getElementById('credit-label');
+            const creditWindow = document.getElementById('credit-window');
+            const machine = document.getElementById('machine');
+
+            creditLabel.innerText = "WINNER!";
+            balanceDisp.innerText = `+$${amount}`;
+            balanceDisp.classList.add('win-party');
+            
+            if (amount >= 50) machine.classList.add('shake');
+            playWinPartySound(amount);
+
+            setTimeout(() => {
+                isFlashingWin = false;
+                machine.classList.remove('shake');
+                updateDisplays();
+            }, amount >= 200 ? 5000 : 2500);
+        }
+
         function handleControlClick(idx) {
             if (holdsAwarded) toggleHold(idx);
             else nudge(idx);
@@ -474,20 +486,24 @@
 
         async function spin() {
             if (isSpinning || balance < currentBet || (gambleInterval !== null)) return;
+            
+            // Auto-finalize any win before spinning
+            if (pendingWin > 0) {
+                const amount = pendingWin;
+                balance += amount;
+                pendingWin = 0;
+                partyWin(amount);
+            }
+
             isSpinning = true;
             balance -= currentBet;
-            
             nudgesAreActiveForTurn = false;
-            pendingWin = 0;
-            gambleAwardedForCurrentWin = false;
             updateDisplays();
-            document.getElementById('win-display').innerText = '$0';
-            playSound(150, 'sawtooth', 0.1, 0.2);
+            playSound(150, 'sawtooth', 0.1, 0.1);
 
             const reelElements = [0, 1, 2].map(id => document.getElementById(`reel-${id}`));
             reelElements.forEach((reel, i) => {
                 if (heldReels[i]) return;
-
                 const newTarget = Math.floor(Math.random() * (STRIP_SIZE - 20)) + 10;
                 reel.style.transition = 'none';
                 reel.style.transform = `translateY(-${(STRIP_SIZE - 5) * SYMBOL_HEIGHT}px)`;
@@ -499,8 +515,7 @@
                     reel.style.transition = `transform ${duration}s cubic-bezier(0.15, 0, 0.1, 1)`;
                     reel.style.transform = `translateY(-${(currentIndices[i] * SYMBOL_HEIGHT) - 60}px)`;
                     
-                    let ticks = 30;
-                    let tc = 0;
+                    let ticks = 30, tc = 0;
                     const tint = setInterval(() => {
                         if (tc >= ticks) clearInterval(tint);
                         playSound(100 + (tc * 5), 'sine', 0.015, 0.02);
@@ -518,13 +533,15 @@
                 if (winMultiplier > 0) {
                     processWin(currentBet * winMultiplier);
                 } else {
-                    if (Math.random() > 0.7) {
+                    const rand = Math.random();
+                    // Consolidated nudge logic: Whenever it triggers, it ALWAYS adds to your bank
+                    if (rand < 0.30) {
                         const awarded = Math.floor(Math.random() * 3) + 1;
                         nudgesRemaining = Math.min(10, nudgesRemaining + awarded);
                         nudgesAreActiveForTurn = true;
                         playSound(600, 'sine', 0.2, 0.1);
                     } 
-                    else if (Math.random() > 0.75) {
+                    else if (rand < 0.50) {
                         holdsAwarded = true;
                         playSound(800, 'sine', 0.3, 0.1);
                     }
@@ -536,7 +553,6 @@
         function nudge(reelIdx) {
             if (nudgesRemaining <= 0 || isSpinning || gambleInterval !== null || holdsAwarded || !nudgesAreActiveForTurn) return;
             nudgesRemaining--;
-            nudgesAreActiveForTurn = true;
             currentIndices[reelIdx]--;
             const reel = document.getElementById(`reel-${reelIdx}`);
             reel.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -546,46 +562,48 @@
             setTimeout(() => {
                 const mult = checkWin();
                 if (mult > 0) {
-                    const winAmt = currentBet * mult;
-                    pendingWin = winAmt;
-                    document.getElementById('win-display').innerText = `+$${winAmt.toLocaleString()}`;
+                    pendingWin = currentBet * mult;
+                    // Force the turn to end if out of nudges OR a full 3-of-a-kind is hit (multiplier > 2)
+                    if (nudgesRemaining === 0 || mult > 2) {
+                        nudgesAreActiveForTurn = false;
+                        triggerGambleAwardCheck(pendingWin);
+                    }
                 } else {
                     pendingWin = 0;
-                    document.getElementById('win-display').innerText = '$0';
-                }
-
-                if (nudgesRemaining === 0 && pendingWin > 0) {
-                    triggerFinalWinSequence(pendingWin);
+                    if (nudgesRemaining === 0) {
+                        nudgesAreActiveForTurn = false;
+                    }
                 }
                 updateDisplays();
             }, 250);
         }
 
-        function bankNudges() {
-            if (nudgesRemaining <= 0 || isSpinning) return;
+        function bankAction() {
+            if (isSpinning || nudgesRemaining <= 0 || !nudgesAreActiveForTurn) return;
             nudgesAreActiveForTurn = false;
-            pendingWin = 0;
-            document.getElementById('win-display').innerText = '$0';
             playSound(440, 'sine', 0.2, 0.1);
+            if (pendingWin > 0) {
+                triggerGambleAwardCheck(pendingWin);
+            }
             updateDisplays();
         }
 
         function processWin(winAmt) {
             pendingWin = winAmt;
-            document.getElementById('win-display').innerText = `+$${winAmt.toLocaleString()}`;
-            if (nudgesRemaining === 0) triggerFinalWinSequence(winAmt);
+            triggerGambleAwardCheck(winAmt);
             updateDisplays();
         }
 
-        function triggerFinalWinSequence(winAmt) {
-            if (Math.random() < 0.2) {
-                gambleAwardedForCurrentWin = true;
+        function triggerGambleAwardCheck(winAmt) {
+            if (winAmt <= 0) return;
+            // 30% chance for gamble
+            if (Math.random() < 0.3) {
                 startGambleSequence(winAmt);
             } else {
+                // Finale: Auto-bank win and party immediately
                 balance += winAmt;
-                playCollectSound();
                 pendingWin = 0;
-                nudgesRemaining = 0;
+                partyWin(winAmt);
                 nudgesAreActiveForTurn = false;
             }
         }
@@ -607,15 +625,15 @@
         function startBlinking() {
             if (gambleInterval) clearInterval(gambleInterval);
             gambleInterval = setInterval(() => {
-                gambleState = gambleState === 0 ? 1 : 0;
+                gambleState = (gambleState === 0) ? 1 : 0;
                 const d = document.getElementById('light-double');
                 const l = document.getElementById('light-lose');
                 if (gambleState === 1) {
                     d.classList.add('on'); l.classList.remove('on');
-                    playSound(800, 'sine', 0.05, 0.05);
+                    playSound(800, 'sine', 0.05, 0.03);
                 } else {
                     l.classList.add('on'); d.classList.remove('on');
-                    playSound(400, 'sine', 0.05, 0.05);
+                    playSound(400, 'sine', 0.05, 0.03);
                 }
             }, gambleSpeed);
         }
@@ -633,37 +651,32 @@
             gambleInterval = null;
 
             if (gambleState === 1) {
+                // Success: Double the prize and keep blinking at higher speed
                 pendingWin *= 2;
-                document.getElementById('win-display').innerText = `+$${pendingWin.toLocaleString()}`;
-                playSound(1000, 'square', 0.3, 0.1);
+                playSound(1200, 'square', 0.3, 0.1);
                 gambleSpeed = Math.max(80, gambleSpeed - 30);
                 startBlinking();
                 updateDisplays();
             } else {
+                // Failure: Lose it all
                 playSound(100, 'sawtooth', 0.5, 0.2);
                 pendingWin = 0;
-                nudgesRemaining = 0; 
                 nudgesAreActiveForTurn = false;
-                gambleAwardedForCurrentWin = false;
-                document.getElementById('win-display').innerText = '$0';
                 updateDisplays();
             }
         }
 
         function collectWin() {
-            if (pendingWin <= 0) return;
-            if (gambleInterval === null) {
-                triggerFinalWinSequence(pendingWin);
-            } else {
-                stopGambleInterval();
-                balance += pendingWin;
-                playCollectSound();
-                pendingWin = 0;
-                nudgesRemaining = 0; 
-                nudgesAreActiveForTurn = false;
-                gambleAwardedForCurrentWin = false;
-                updateDisplays();
-            }
+            if (pendingWin <= 0 || gambleInterval === null) return;
+            const amount = pendingWin;
+            
+            // Explicitly taking the pot while ladder is blinking
+            stopGambleInterval();
+            balance += amount;
+            pendingWin = 0;
+            nudgesAreActiveForTurn = false;
+            partyWin(amount);
+            updateDisplays();
         }
 
         window.onload = init;
